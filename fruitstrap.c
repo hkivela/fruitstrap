@@ -710,7 +710,6 @@ void handle_device(AMDeviceRef device) {
 
     CFStringRef found_device_id = AMDeviceCopyDeviceIdentifier(device);
 
-    PRINT ("found device id\n");
     if (device_id != NULL) {
         if(strcmp(device_id, CFStringGetCStringPtr(found_device_id, CFStringGetSystemEncoding())) == 0) {
             found_device = true;
@@ -719,7 +718,20 @@ void handle_device(AMDeviceRef device) {
         }
     } else {
         if (operation == OP_LIST_DEVICES) {
-            printf ("%s\n", CFStringGetCStringPtr(found_device_id, CFStringGetSystemEncoding()));
+            CFStringEncoding encoding = CFStringGetSystemEncoding();
+            const char *udi = CFStringGetCStringPtr(found_device_id, encoding);
+            
+	    AMDeviceConnect(device);            
+            if(AMDeviceIsPaired(device) && (AMDeviceValidatePairing(device) == 0) && (AMDeviceStartSession(device) == 0)) {
+                const char *device_name  = CFStringGetCStringPtr(AMDeviceCopyValue(device, 0, CFSTR("DeviceName")),     encoding);
+                const char *product_type = CFStringGetCStringPtr(AMDeviceCopyValue(device, 0, CFSTR("ProductType")),    encoding);
+                const char *ios_version  = CFStringGetCStringPtr(AMDeviceCopyValue(device, 0, CFSTR("ProductVersion")), encoding);
+                
+                printf ("%s %s %s %s\n", udi, product_type, ios_version, device_name);
+            } else {
+                printf("%s\n", udi);
+            }
+            fflush(stdout);
             return;
         }
         found_device = true;
@@ -764,7 +776,7 @@ void device_callback(struct am_device_notification_callback_info *info, void *ar
         case ADNCI_MSG_CONNECTED:
 			if( info->dev->lockdown_conn ) {
 				handle_device(info->dev);
-			}
+			}            
         default:
             break;
     }
